@@ -1,0 +1,2 @@
+git+https://gitlab.com/datadrivendiscovery/d3m/@v2019.1.21
+arrayfire==3.6.20181017
