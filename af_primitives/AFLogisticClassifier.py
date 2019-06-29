@@ -24,8 +24,8 @@ import common_primitives.utils as common_utils
 from d3m.primitive_interfaces.supervised_learning import SupervisedLearnerPrimitiveBase
 from d3m.primitive_interfaces.base import ProbabilisticCompositionalityMixin
 
-Inputs = d3m_dataframe
-Outputs = d3m_dataframe
+Inputs = Union[d3m_DataFrame, d3m_ndarray]
+Outputs = d3m_ndarray
 
 class Params(params.Params):
     coef_: Optional[ndarray]
@@ -143,12 +143,11 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
     __author__ = "ArrayFire"
     metadata = metadata_base.PrimitiveMetadata({ 
          "algorithm_types": [metadata_base.PrimitiveAlgorithmType.LOGISTIC_REGRESSION, ],
-         "name": "af_LogisticRegression",
+         "name": "af.LogisticClassifier",
          "primitive_family": metadata_base.PrimitiveFamily.CLASSIFICATION,
-         "python_path": "d3m.primitives.classification.logistic_regression.AF",
-         #TODO:
-         #"source": {'name': 'ArrayFire', 'contact': 'mailto:support@arrayfire.com', 'uris': ['https://gitlab.com/']},
-         "version": "0.1.0",
+         "python_path": "d3m.primitives.af_primitives.AFLogisticClassifier",
+         #"source": {'name': 'ArrayFire', 'contact': 'mailto:support@arrayfire.com', 'uris': ['https://gitlab.com/arrayfire/arrayfire']},
+         "version": "0.0.1",
          "id": "73dff093-f8fe-4e9e-a5af-88a7e4398a43"
          #TODO:
          #'installation': [
