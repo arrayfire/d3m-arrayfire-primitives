@@ -228,9 +228,9 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
         feature_length = int(train_images.elements() / num_train);
         train_feats = af.moddims(train_images, num_train, feature_length)
 
-        # Add bias
-        train_bias = af.constant(1, num_train, 1)
-        train_feats = af.join(1, train_bias, train_feats)
+        # # Add bias
+        # train_bias = af.constant(1, num_train, 1)
+        # train_feats = af.join(1, train_bias, train_feats)
 
         # Start training
         self._weights = self._train(train_feats, train_targets,
@@ -247,9 +247,9 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
     def produce(self, *, inputs: Inputs, timeout: float = None, iterations: int = None) -> CallResult[Outputs]:
         # We may have to adjust the dimensions when doing this conversion
         af_inputs = af.from_ndarray(inputs)
-        # print('af_inputs: {}'.format(af_inputs.dims()))
-        # print('weights: {}'.format(self._weights.dims()))
-        af_output = self._predict(af_inputs, self._weights[:4, :])
+        print('af_inputs: {}'.format(af_inputs.dims()))
+        print('weights: {}'.format(self._weights.dims()))
+        af_output = self._predict(af_inputs, self._weights)
         output = af_output.to_ndarray()
         return CallResult(d3m_ndarray(output))
 

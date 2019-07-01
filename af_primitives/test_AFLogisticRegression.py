@@ -54,6 +54,7 @@ def onehots_to_ints(onehots):
 
 def read_and_preprocess_iris_data():
     X, y = load_iris(return_X_y=True)
+    X, Y = shuffle(X, y, random_state=rng)
     X = X.astype('float32')
     y = y.astype('uint32')
     return (X, y, X, y)
@@ -173,15 +174,25 @@ class TestAFLogisticRegression(unittest.TestCase):
         train_targets = af.from_ndarray(ints_to_onehots(dataset[1], num_classes))
         test_feats = af.from_ndarray(dataset[2])
         test_targets = af.from_ndarray(ints_to_onehots(dataset[3], num_classes))
+        # print('Before adding bias:')
+        # print('train_feats: {}'.format(train_feats.shape))
+        # print('train_targets: {}'.format(train_targets.shape))
+        # print('test_feats: {}'.format(test_feats.shape))
+        # print('test_targets: {}'.format(test_targets.shape))
 
         num_train = train_feats.dims()[0]
         num_test = test_feats.dims()[0]
 
         # Add bias
-        train_bias = af.constant(1, num_train, 1)
-        test_bias = af.constant(1, num_test, 1)
-        train_feats = af.join(1, train_bias, train_feats)
-        test_feats = af.join(1, test_bias, test_feats)
+        # train_bias = af.constant(1, num_train, 1)
+        # test_bias = af.constant(1, num_test, 1)
+        # train_feats = af.join(1, train_bias, train_feats)
+        # test_feats = af.join(1, test_bias, test_feats)
+        # print('After adding bias:')
+        # print('train_feats: {}'.format(train_feats.shape))
+        # print('train_targets: {}'.format(train_targets.shape))
+        # print('test_feats: {}'.format(test_feats.shape))
+        # print('test_targets: {}'.format(test_targets.shape))
 
         ref_clf = RefAfLogisticRegression(alpha=0.1,          # learning rate
                                       lambda_param = 1.0, # regularization constant
@@ -191,7 +202,7 @@ class TestAFLogisticRegression(unittest.TestCase):
         )
 
         ref_clf.train(train_feats, train_targets)
-        af_output = ref_clf.predict_proba(test_feats)
+        af_output = ref_clf.predict(test_feats)
         ref_output = af_output.to_ndarray()
         print('Completed reference calculation')
 
@@ -209,6 +220,10 @@ class TestAFLogisticRegression(unittest.TestCase):
         test_output = test_clf.produce(inputs=train_set)
         print('Completed test calculation')
 
+        print('ref_output: {}'.format(ref_output.shape))
+        print(ref_output[:5])
+        print('test_output: {}'.format(test_output.value.shape))
+        print(test_output.value[:5])
         self.assertTrue(np.array_equal(ref_output, test_output.value))
         print('SUCCESS: Pure arrayfire-python output equals d3m-arrayfire output')
 
