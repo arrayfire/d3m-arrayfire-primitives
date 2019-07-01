@@ -183,18 +183,34 @@ class TestAFLogisticRegression(unittest.TestCase):
         train_feats = af.join(1, train_bias, train_feats)
         test_feats = af.join(1, test_bias, test_feats)
 
-        clf = RefAfLogisticRegression(alpha=0.1,          # learning rate
+        ref_clf = RefAfLogisticRegression(alpha=0.1,          # learning rate
                                       lambda_param = 1.0, # regularization constant
                                       maxerr=0.01,        # max error
                                       maxiter=1000,       # max iters
                                       verbose=False       # verbose mode
         )
 
-        clf.train(train_feats, train_targets)
-        test_outputs = clf.predict_proba(test_feats)
+        ref_clf.train(train_feats, train_targets)
+        af_output = ref_clf.predict_proba(test_feats)
+        ref_output = af_output.to_ndarray()
+        print('Completed reference calculation')
 
         ############# d3m-arrayfire example ###########
 
+        classes = np.unique(iris.target)
+        hyperparams = AFLogisticRegression.Hyperparams.defaults()
+        # Create the model object
+        test_clf = AFLogisticRegression.AFLogisticRegression(hyperparams=hyperparams)
+        train_set = dataset[0]
+        targets = dataset[1]
+        test_clf.set_training_data(inputs=train_set, outputs=targets)
+        test_clf.fit()
+
+        test_output = test_clf.produce(inputs=train_set)
+        print('Completed test calculation')
+
+        self.assertTrue(np.array_equal(ref_output, test_output.value))
+        print('SUCCESS: Pure arrayfire-python output equals d3m-arrayfire output')
 
         # classes = np.unique(iris.target)
         # hyperparams = AFLogisticRegression.Hyperparams.defaults()

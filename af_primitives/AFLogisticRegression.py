@@ -62,8 +62,7 @@ class Hyperparams(hyperparams.Hyperparams):
     )
 
 
-class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Params, Hyperparams],
-                           ProbabilisticCompositionalityMixin[Inputs, Outputs, Params, Hyperparams]):
+class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Params, Hyperparams]):
     """
     Primitive implementing LogisticRegression using the ArrayFire library
     """
@@ -121,6 +120,8 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
         return 100 * af.sum(af.abs(predicted - target)) / predicted.elements()
 
     def _predict_proba(self, X, Weights):
+        # print('X: {}'.format(X.dtype()))
+        # print('Weights: {}'.format(Weights.dtype()))
         Z = af.matmul(X, Weights)
         return af.sigmoid(Z)
 
@@ -153,11 +154,12 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
         Jerr = -1 * af.sum(Y * af.log(H) + (1 - Y) * af.log(1 - H), dim=0)
 
         # Regularization cost
-        penalty_norm = None
-        if self.hyperparams['penalty'] == 'l2':
-            penalty_norm = Weights * Weights
-        else:
-            penalty_norm = af.abs(Weights)
+        # penalty_norm = None
+        # if self.hyperparams['penalty'] == 'l2':
+        #     penalty_norm = Weights * Weights
+        # else:
+        #     penalty_norm = af.abs(Weights)
+        penalty_norm = Weights * Weights
         Jreg = 0.5 * af.sum(lambdat * penalty_norm, dim=0)
 
         # Total cost
@@ -170,6 +172,7 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
         return J, dJ
 
     def _ints_to_onehots(self, digits, num_classes):
+        # print('num_classes: {}'.format(num_classes))
         onehots = np.zeros((digits.shape[0], num_classes), dtype='float32')
         onehots[np.arange(digits.shape[0]), digits] = 1
         return onehots
@@ -186,7 +189,7 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
                 return Weights
 
             # Update the weights via gradient descent
-            Weights = Weights - alpha * d
+            Weights = Weights - alpha * dJ
 
         return Weights
 
@@ -200,11 +203,10 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
 
         # Assume training input data is an ndarray
         training_inputs = self._training_inputs
-        training_outputs = self._training_outputs.values
-        params = self.get_params()
+        training_outputs = self._training_outputs
 
         if self._n_classes == 0:
-            self._n_classes = np.amax(training_outputs[1] + 1)
+            self._n_classes = np.unique(training_outputs).shape[0]
         self._n_features = training_inputs.shape[1]
 
         # Flatten output if needed
@@ -214,6 +216,9 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
 
         # Convert ndarray to af array
         train_images = af.from_ndarray(training_inputs)
+        # print('training_outputs: {}'.format(training_outputs.shape))
+        # print(training_outputs[:5])
+        # print('training_outputs unique: {}'.format(np.unique(training_outputs)))
         train_targets = af.from_ndarray(
             self._ints_to_onehots(training_outputs, self._n_classes)
         )
@@ -241,8 +246,10 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
 
     def produce(self, *, inputs: Inputs, timeout: float = None, iterations: int = None) -> CallResult[Outputs]:
         # We may have to adjust the dimensions when doing this conversion
-        af_inputs = af.from_ndarray(inputs.values)
-        af_output = self._predict(af_inputs, self._Weights)
+        af_inputs = af.from_ndarray(inputs)
+        # print('af_inputs: {}'.format(af_inputs.dims()))
+        # print('weights: {}'.format(self._weights.dims()))
+        af_output = self._predict(af_inputs, self._weights[:4, :])
         output = af_output.to_ndarray()
         return CallResult(d3m_ndarray(output))
 
