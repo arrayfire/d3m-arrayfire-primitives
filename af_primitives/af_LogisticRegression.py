@@ -71,9 +71,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         "source": {'name': 'ArrayFire', 'contact': 'mailto:support@arrayfire.com',
                    'uris': ['https://gitlab.com/arrayfire/arrayfire']},
         "version": "0.0.1",
-        # TODO: change ID. this was taken from SKBaggingClassifier
-        # Generate using uuid.uuid4()
-         "id": "73dff093-f8fe-4e9e-a5af-88a7e4398a43"
+        "id": "25b08bb7-12f0-4447-a75b-5856ead6227e"
         # TODO: add installation
         # 'installation': [
         #                {'type': metadata_base.PrimitiveInstallationType.PIP,
