@@ -57,7 +57,7 @@ class Hyperparams(hyperparams.Hyperparams):
     )
 
 
-class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Params, Hyperparams]):
+class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Params, Hyperparams]):
     """
     Primitive implementing LogisticRegression using the ArrayFire library
     """
@@ -65,9 +65,9 @@ class AFLogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Param
     __author__ = "ArrayFire"
     metadata = metadata_base.PrimitiveMetadata({
         "algorithm_types": [metadata_base.PrimitiveAlgorithmType.LOGISTIC_REGRESSION, ],
-        "name": "af.LogisticRegression",
+        "name": "ArrayFire Logistic Regression",
         "primitive_family": metadata_base.PrimitiveFamily.REGRESSION,
-        "python_path": "d3m.primitives.af_primitives.AFLogisticRegression",
+        "python_path": "d3m.primitives.regression.logistic.AFPrimitives",
         # TODO: support@arrayfire.com is not a valid URI according to d3m framework
         # "source": {'name': 'ArrayFire', 'contact': 'support@arrayfire.com',
         #            'uris': ['https://gitlab.com/arrayfire/arrayfire']},

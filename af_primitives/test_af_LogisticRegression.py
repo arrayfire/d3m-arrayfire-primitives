@@ -6,8 +6,8 @@ from typing import NamedTuple
 from sklearn import datasets
 from sklearn.utils import shuffle
 
-import AFLogisticRegression
-# from autogenerate.d3m_sklearn_wrap.sklearn_wrap import AFLogisticRegression
+import af_LogisticRegression
+# from autogenerate.d3m_sklearn_wrap.sklearn_wrap import af_LogisticRegression
 
 # Taken from original af logit example
 import arrayfire as af
@@ -147,7 +147,7 @@ class RefAfLogisticRegression:
         af.sync()
 
 
-class TestAFLogisticRegression(unittest.TestCase):
+class Testaf_LogisticRegression(unittest.TestCase):
 
     def test(self):
         ############# Pure arrayfire-python example ###########
@@ -188,9 +188,9 @@ class TestAFLogisticRegression(unittest.TestCase):
 
         ############# d3m-arrayfire example ###########
 
-        hyperparams = AFLogisticRegression.Hyperparams.defaults()
+        hyperparams = af_LogisticRegression.Hyperparams.defaults()
         # Create the model object
-        test_clf = AFLogisticRegression.AFLogisticRegression(hyperparams=hyperparams)
+        test_clf = af_LogisticRegression.af_LogisticRegression(hyperparams=hyperparams)
         train_set = iris.data
         targets = iris.target
         test_clf.set_training_data(inputs=train_set, outputs=targets)
@@ -217,7 +217,7 @@ class TestAFLogisticRegression(unittest.TestCase):
         unpickled_hyperparams = pickle.loads(pickled_hyperparams)
 
         # Create a new object from pickled params and hyperparams
-        pickle_params_clf = AFLogisticRegression.AFLogisticRegression(hyperparams=unpickled_hyperparams)
+        pickle_params_clf = af_LogisticRegression.af_LogisticRegression(hyperparams=unpickled_hyperparams)
         pickle_params_clf.set_params(params=unpickled_params)
         pickle_params_clf.set_training_data(inputs=train_set, outputs=targets)
         pickle_params_clf.fit()

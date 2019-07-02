@@ -49,8 +49,8 @@ setup(
     url='https://gitlab.datadrivendiscovery.org/syurkevitch/d3m-af-primitives/',
     entry_points = {
         'd3m.primitives': [
-            'classification.k_neighbors.af = af_primitives.af_KNClassifier:af_KNClassifier',
-            'classification.logistic_regression.af = af_primitives.af_LogisticRegression:af_LogisticRegression'
+            'classification.k_neighbors.AFPrimitives = af_primitives.af_KNClassifier:af_KNClassifier',
+            'regression.logistic.AFPrimitives = af_primitives.af_LogisticRegression:af_LogisticRegression'
         ],
     },
 )
