@@ -53,7 +53,7 @@ class Hyperparams(hyperparams.Hyperparams):
     verbose = hyperparams.Hyperparameter[int](
         default=0,
         description="Controls the verbosity of the building process.",
-        semantic_types=['https://metadata.datadrivendiscovery.org/types/TuningParameter']
+        semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter']
     )
 
 
@@ -68,11 +68,11 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         "name": "ArrayFire Logistic Regression",
         "primitive_family": metadata_base.PrimitiveFamily.REGRESSION,
         "python_path": "d3m.primitives.regression.logistic.AFPrimitives",
-        # TODO: support@arrayfire.com is not a valid URI according to d3m framework
-        # "source": {'name': 'ArrayFire', 'contact': 'support@arrayfire.com',
-        #            'uris': ['https://gitlab.com/arrayfire/arrayfire']},
+        "source": {'name': 'ArrayFire', 'contact': 'mailto:support@arrayfire.com',
+                   'uris': ['https://gitlab.com/arrayfire/arrayfire']},
         "version": "0.0.1",
         # TODO: change ID. this was taken from SKBaggingClassifier
+        # Generate using uuid.uuid4()
          "id": "73dff093-f8fe-4e9e-a5af-88a7e4398a43"
         # TODO: add installation
         # 'installation': [
