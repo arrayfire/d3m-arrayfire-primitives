@@ -202,37 +202,40 @@ class TestAFLogisticRegression(unittest.TestCase):
         self.assertTrue(np.array_equal(ref_output, test_output.value))
         print('SUCCESS: Pure arrayfire-python output equals d3m-arrayfire output')
 
-        # # Testing get_params() and set_params()
-        # params = clf.get_params()
-        # clf.set_params(params=params)
-        # first_output = clf.produce(inputs=train_set)
+        # Testing get_params() and set_params()
+        params = test_clf.get_params()
+        test_clf.set_params(params=params)
+        first_output = test_clf.produce(inputs=train_set)
+        self.assertTrue(np.array_equal(ref_output, first_output.value))
+        print('SUCCESS: get_params and set_params work')
 
-        # # pickle the params and hyperparams
-        # pickled_params = pickle.dumps(params)
-        # unpickled_params = pickle.loads(pickled_params)
+        # pickle the params and hyperparams
+        pickled_params = pickle.dumps(params)
+        unpickled_params = pickle.loads(pickled_params)
 
-        # pickled_hyperparams = pickle.dumps(hyperparams)
-        # unpickled_hyperparams = pickle.loads(pickled_hyperparams)
+        pickled_hyperparams = pickle.dumps(hyperparams)
+        unpickled_hyperparams = pickle.loads(pickled_hyperparams)
 
-        # # Create a new object from pickled params and hyperparams
-        # new_clf = AFLogisticRegression.AFLogisticRegression(hyperparams=unpickled_hyperparams)
-        # new_clf.set_params(params=unpickled_params)
-        # new_output = new_clf.produce(inputs=train_set)
+        # Create a new object from pickled params and hyperparams
+        pickle_params_clf = AFLogisticRegression.AFLogisticRegression(hyperparams=unpickled_hyperparams)
+        pickle_params_clf.set_params(params=unpickled_params)
+        pickle_params_clf.set_training_data(inputs=train_set, outputs=targets)
+        pickle_params_clf.fit()
+        pickle_params_output = pickle_params_clf.produce(inputs=train_set)
 
-        # # Check if outputs match
-        # self.assertTrue(np.array_equal(first_output.value, output.value))
-        # self.assertTrue(np.array_equal(new_output.value, output.value))
-        # # We want to test the running of the code without errors and not the correctness of it
-        # # since that is assumed to be tested by sklearn
-        # # assert np.array_equal(classes, clf._clf.classes_)
-        # print("SUCCESS: Test fit produce on AFLogisticRegression")
+        # Check if outputs match
+        self.assertTrue(np.array_equal(ref_output, pickle_params_output.value))
+        # We want to test the running of the code without errors and not the correctness of it
+        # since that is assumed to be tested by sklearn
+        print("SUCCESS: Pickling and unpickling hyperparams and params work")
 
-        # model = pickle.dumps(clf)
-        # new_clf = pickle.loads(model)
-        # new_output = new_clf.produce(inputs=train_set)
-        # self.assertTrue(np.array_equal(output.value, output.value))
-        # self.assertTrue(np.array_equal(new_output.value, output.value))
-        # print("SUCCESS: Test pickling entire model on AFLogisticRegression")
+        # Pickling whole model doesn't work right now, probably because model
+        # is stored in device memory and pickle cannot serialize it trivially
+        # model = pickle.dumps(test_clf)
+        # pickle_model_clf = pickle.loads(model)
+        # pickle_model_output = pickle_model_clf.produce(inputs=train_set)
+        # self.assertTrue(np.array_equal(ref_output, pickle_model_output.value))
+        # print("SUCCESS: Pickling whole model works")
 
 
 if __name__ == '__main__':
