@@ -17,7 +17,6 @@ from arrayfire.blas import matmul, matmulTN
 from arrayfire.data import constant, join
 from arrayfire.device import eval, sync
 from arrayfire.interop import from_ndarray
-from sklearn.datasets import load_iris
 
 # Common random state
 rng = np.random.RandomState(0)
@@ -50,14 +49,6 @@ def ints_to_onehots(ints, num_classes):
 
 def onehots_to_ints(onehots):
     return np.argmax(onehots, axis=1)
-
-
-def read_and_preprocess_iris_data():
-    X, y = load_iris(return_X_y=True)
-    X, Y = shuffle(X, y, random_state=rng)
-    X = X.astype('float32')
-    y = y.astype('uint32')
-    return (X, y, X, y)
 
 
 def accuracy(predicted, target):
@@ -156,49 +147,38 @@ class RefAfLogisticRegression:
         af.sync()
 
 
-
 class TestAFLogisticRegression(unittest.TestCase):
 
     def test(self):
         ############# Pure arrayfire-python example ###########
 
         # Determine number of classes if not provided
-        dataset = read_and_preprocess_iris_data()
-        # train_feats = iris.data
-        # train_targets = iris.target
-        num_classes = np.amax(dataset[1] + 1)
+        num_classes = np.unique(iris.target).shape[0]
 
         # Convert numpy array to af array (and convert labels/targets from ints to
         # one-hot encodings)
-        train_feats = af.from_ndarray(dataset[0])
-        train_targets = af.from_ndarray(ints_to_onehots(dataset[1], num_classes))
-        test_feats = af.from_ndarray(dataset[2])
-        test_targets = af.from_ndarray(ints_to_onehots(dataset[3], num_classes))
-        # print('Before adding bias:')
-        # print('train_feats: {}'.format(train_feats.shape))
-        # print('train_targets: {}'.format(train_targets.shape))
-        # print('test_feats: {}'.format(test_feats.shape))
-        # print('test_targets: {}'.format(test_targets.shape))
+        train_feats = af.from_ndarray(iris.data.astype('float32'))
+        train_targets = af.from_ndarray(ints_to_onehots(iris.target.astype('uint32'), num_classes))
+        test_feats = af.from_ndarray(iris.data.astype('float32'))
+        test_targets = af.from_ndarray(ints_to_onehots(iris.target.astype('uint32'), num_classes))
 
         num_train = train_feats.dims()[0]
         num_test = test_feats.dims()[0]
 
+        # Remove bias for now to match output with pure arrayfire example
+        # Pure arrayfire example uses features with bias column for train and test
+        # but we can't expect that for d3m's inputs in general
         # Add bias
         # train_bias = af.constant(1, num_train, 1)
         # test_bias = af.constant(1, num_test, 1)
         # train_feats = af.join(1, train_bias, train_feats)
         # test_feats = af.join(1, test_bias, test_feats)
-        # print('After adding bias:')
-        # print('train_feats: {}'.format(train_feats.shape))
-        # print('train_targets: {}'.format(train_targets.shape))
-        # print('test_feats: {}'.format(test_feats.shape))
-        # print('test_targets: {}'.format(test_targets.shape))
 
         ref_clf = RefAfLogisticRegression(alpha=0.1,          # learning rate
-                                      lambda_param = 1.0, # regularization constant
-                                      maxerr=0.01,        # max error
-                                      maxiter=1000,       # max iters
-                                      verbose=False       # verbose mode
+                                          lambda_param = 1.0, # regularization constant
+                                          maxerr=0.01,        # max error
+                                          maxiter=1000,       # max iters
+                                          verbose=False       # verbose mode
         )
 
         ref_clf.train(train_feats, train_targets)
@@ -208,35 +188,19 @@ class TestAFLogisticRegression(unittest.TestCase):
 
         ############# d3m-arrayfire example ###########
 
-        classes = np.unique(iris.target)
         hyperparams = AFLogisticRegression.Hyperparams.defaults()
         # Create the model object
         test_clf = AFLogisticRegression.AFLogisticRegression(hyperparams=hyperparams)
-        train_set = dataset[0]
-        targets = dataset[1]
+        train_set = iris.data
+        targets = iris.target
         test_clf.set_training_data(inputs=train_set, outputs=targets)
         test_clf.fit()
 
         test_output = test_clf.produce(inputs=train_set)
         print('Completed test calculation')
 
-        print('ref_output: {}'.format(ref_output.shape))
-        print(ref_output[:5])
-        print('test_output: {}'.format(test_output.value.shape))
-        print(test_output.value[:5])
         self.assertTrue(np.array_equal(ref_output, test_output.value))
         print('SUCCESS: Pure arrayfire-python output equals d3m-arrayfire output')
-
-        # classes = np.unique(iris.target)
-        # hyperparams = AFLogisticRegression.Hyperparams.defaults()
-        # # Create the model object
-        # clf = AFLogisticRegression.AFLogisticRegression(hyperparams=hyperparams)
-        # train_set = iris.data
-        # targets = iris.target
-        # clf.set_training_data(inputs=train_set, outputs=targets)
-        # clf.fit()
-
-        # output = clf.produce(inputs=train_set)
 
         # # Testing get_params() and set_params()
         # params = clf.get_params()
