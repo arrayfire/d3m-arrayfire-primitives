@@ -52,33 +52,38 @@ class Hyperparams(hyperparams.Hyperparams):
     )
     verbose = hyperparams.Hyperparameter[int](
         default=0,
-        description="Controls the verbosity of the building process.",
+        description='Controls the verbosity of the building process.',
         semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter']
     )
 
 
 class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Params, Hyperparams]):
-    """
+    '''
     Primitive implementing LogisticRegression using the ArrayFire library
-    """
+    '''
 
-    __author__ = "ArrayFire"
+    __author__ = 'ArrayFire'
     metadata = metadata_base.PrimitiveMetadata({
-        "algorithm_types": [metadata_base.PrimitiveAlgorithmType.LOGISTIC_REGRESSION, ],
-        "name": "ArrayFire Logistic Regression",
-        "primitive_family": metadata_base.PrimitiveFamily.REGRESSION,
-        "python_path": "d3m.primitives.regression.logistic.AFPrimitives",
-        "source": {'name': 'ArrayFire', 'contact': 'mailto:support@arrayfire.com',
-                   'uris': ['https://gitlab.com/arrayfire/arrayfire']},
-        "version": "0.0.1",
-        "id": "25b08bb7-12f0-4447-a75b-5856ead6227e"
-        # TODO: add installation
-        # 'installation': [
-        #                {'type': metadata_base.PrimitiveInstallationType.PIP,
-        #                   'package_uri': 'git+https://gitlab.com/datadrivendiscovery/sklearn-wrap.git@{git_commit}#egg=sklearn_wrap'.format(
-        #                       git_commit=utils.current_git_commit(os.path.dirname(__file__)),
-        #                    ),
-        #                }]
+        'name': 'ArrayFire Logistic Regression',
+        'source': {
+            'name': 'ArrayFire',
+            'contact': 'mailto:support@arrayfire.com',
+            'uris': ['https://gitlab.com/syurkevi/d3m-arrayfire-primitives']},
+        'id': '25b08bb7-12f0-4447-a75b-5856ead6227e',
+        'version': '0.1.0',
+        'python_path': 'd3m.primitives.regression.logistic.AFPrimitives',
+        'keywords' : ['arrayfire', 'logistic regression', 'logistic regressor'],
+        'installation': [
+            {'type': metadata_base.PrimitiveInstallationType.PIP,
+             'package_uri': 'git+https://gitlab.com/syurkevi/d3m-arrayfire-primitives@{git_commit}#egg=af_primitives'.format(
+                 git_commit=utils.current_git_commit(os.path.dirname(__file__)),
+             ),
+            }],
+        'algorithm_types': [
+            metadata_base.PrimitiveAlgorithmType.LOGISTIC_REGRESSION,
+        ],
+        'primitive_family': metadata_base.PrimitiveFamily.REGRESSION,
+        'hyperparameters_to_tune': ['learning_rate', 'reg_constant', 'max_err', 'max_iter']
     })
 
     def __init__(self, *,
@@ -194,7 +199,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             return CallResult(None)
 
         if self._training_inputs is None or self._training_outputs is None:
-            raise ValueError("Missing training data.")
+            raise ValueError('Missing training data.')
 
         # Assume training input data is an ndarray
         training_inputs = self._training_inputs
@@ -248,7 +253,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
     def get_params(self) -> Params:
         if not self._fitted:
-            raise ValueError("Fit not performed.")
+            raise ValueError('Fit not performed.')
 
         return Params(
             n_classes_ = self._n_classes,
