@@ -1,8 +1,8 @@
 import os
+import re
 from setuptools import setup, find_packages
 
 PACKAGE_NAME = 'af_primitives'
-
 
 def read_package_variable(key):
     """Read the value of a variable from the package without importing."""
@@ -22,8 +22,8 @@ setup(
     author=read_package_variable('__author__'),
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     install_requires=[
-        'd3m',
-        'arrayfire'
+        'arrayfire==3.6.20181017',
+        'd3m==2019.6.7'
     ],
     url='https://gitlab.com/syurkevi/d3m-arrayfire-primitives',
     keywords='d3m_primitive',
