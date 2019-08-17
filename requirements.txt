@@ -1,4 +1,6 @@
+python-prctl
 arrayfire==3.6.20181017
 d3m==2019.6.7
-git+https://gitlab.com/datadrivendiscovery/common-primitives.git@devel#egg=common_primitives
-git+https://gitlab.com/datadrivendiscovery/sklearn-wrap.git@dev-dist#egg=sklearn_wrap
+git+https://gitlab.com/datadrivendiscovery/common-primitives.git@master#egg=common-primitives
+git+https://gitlab.com/datadrivendiscovery/sklearn-wrap.git@dev-dist#egg=sklearn-wrap
+git+https://gitlab.com/datadrivendiscovery/tests-data@master#egg=tests-data&subdirectory=primitives
