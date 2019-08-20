@@ -1,88 +1,78 @@
-#! /usr/bin/python3
-
-from time import time
 from typing import Any, Callable, List, Dict, Union, Optional, Sequence, Tuple
-import typing
-from collections import OrderedDict
 from numpy import ndarray
-import numpy as np
+from collections import OrderedDict
+from scipy import sparse
+import os
+import numpy
+import typing
 
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from sklearn import neighbors, datasets
-
+# Custom import commands if any
 import arrayfire as af
 
-# D3M interfaces
-from d3m import utils
-import common_primitives.utils as common_utils
 from d3m.container.numpy import ndarray as d3m_ndarray
 from d3m.container import DataFrame as d3m_dataframe
 from d3m.metadata import hyperparams, params, base as metadata_base
+from d3m import utils
+from d3m.base import utils as base_utils
+from d3m.exceptions import PrimitiveNotFittedError
 from d3m.primitive_interfaces.base import CallResult, DockerContainer
+
 from d3m.primitive_interfaces.supervised_learning import SupervisedLearnerPrimitiveBase
-from d3m.primitive_interfaces.base import ProbabilisticCompositionalityMixin
+from d3m.primitive_interfaces.base import ProbabilisticCompositionalityMixin, ContinueFitMixin
+from d3m import exceptions
+import pandas
 
 Inputs = d3m_dataframe
 Outputs = d3m_dataframe
 
-#TODO: figure out relevant params
-class Params(params.Params):
-    _fit_method: Optional[str]
-    _fit_X: Optional[ndarray]
-    _tree: Optional[object]
-    classes_: Optional[ndarray]
-    _y: Optional[ndarray]
-    outputs_2d_: Optional[bool]
-    effective_metric_: Optional[str]
-    effective_metric_params_: Optional[Dict]
-    radius: Optional[float]
 
+class Params(params.Params):
+    input_column_names: Optional[Any]
     target_names_: Optional[Sequence[Any]]
     training_indices_: Optional[Sequence[int]]
+    target_column_indices_: Optional[Sequence[int]]
+    target_columns_metadata_: Optional[List[OrderedDict]]
+
 
 class Hyperparams(hyperparams.Hyperparams):
     n_neighbors = hyperparams.Bounded[int](
         default=5,
-        lower=1,
-        upper=256,
+        lower=0,
+        upper=None,
         description='Number of neighbors to use by default for :meth:`k_neighbors` queries.',
         semantic_types=['https://metadata.datadrivendiscovery.org/types/TuningParameter']
     )
     weights = hyperparams.Enumeration[str](
         values=['uniform', 'distance'],
         default='uniform',
-        description='weight function used in prediction.  Possible values:  - \'uniform\' : uniform weights. \
-                     All points in each neighborhood are weighted equally. - \'distance\' : weight points by \
-                     the inverse of their distance. in this case, closer neighbors of a query point will     \
-                     have a greater influence than neighbors which are further away.',
+        description='weight function used in prediction.  Possible values:  - \'uniform\' : uniform weights.  All points in each neighborhood are weighted equally. - \'distance\' : weight points by the inverse of their distance. in this case, closer neighbors of a query point will have a greater influence than neighbors which are further away. - [callable] : a user-defined function which accepts an array of distances, and returns an array of the same shape containing the weights.',
         semantic_types=['https://metadata.datadrivendiscovery.org/types/TuningParameter']
     )
-    metric = hyperparams.Enumeration[str](
-        values=['euclidean', 'manhattan'],
-        default='euclidean',
-        description='the distance metric to use for the tree. The default metric is the standard Euclidean metric.',
+    dist_type = hyperparams.Enumeration[str](
+        values=['sad', 'ssd', 'hamming'],
+        default='ssd',
+        description='The distance computation type. Currently \'sad\' (sum of absolute differences), \'ssd\' (sum of squared differences), and \'hamming\' (hamming distances) are supported.',
         semantic_types=['https://metadata.datadrivendiscovery.org/types/TuningParameter']
     )
-    use_input_columns = hyperparams.Set(
+    use_inputs_columns = hyperparams.Set(
         elements=hyperparams.Hyperparameter[int](-1),
         default=(),
         semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter'],
         description="A set of column indices to force primitive to use as training input. If any specified column cannot be parsed, it is skipped.",
     )
-    use_output_columns = hyperparams.Set(
+    use_outputs_columns = hyperparams.Set(
         elements=hyperparams.Hyperparameter[int](-1),
         default=(),
         semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter'],
         description="A set of column indices to force primitive to use as training target. If any specified column cannot be parsed, it is skipped.",
     )
-    exclude_input_columns = hyperparams.Set(
+    exclude_inputs_columns = hyperparams.Set(
         elements=hyperparams.Hyperparameter[int](-1),
         default=(),
         semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter'],
         description="A set of column indices to not use as training inputs. Applicable only if \"use_columns\" is not provided.",
     )
-    exclude_output_columns = hyperparams.Set(
+    exclude_outputs_columns = hyperparams.Set(
         elements=hyperparams.Hyperparameter[int](-1),
         default=(),
         semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter'],
@@ -104,7 +94,18 @@ class Hyperparams(hyperparams.Hyperparams):
         semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter'],
         description="Also include primary index columns if input data has them. Applicable only if \"return_result\" is set to \"new\".",
     )
+    error_on_no_input = hyperparams.UniformBool(
+        default=True,
+        semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter'],
+        description="Throw an exception if no input column is selected/provided. Defaults to true to behave like sklearn. To prevent pipelines from breaking set this to False.",
+    )
 
+    return_semantic_type = hyperparams.Enumeration[str](
+        values=['https://metadata.datadrivendiscovery.org/types/Attribute', 'https://metadata.datadrivendiscovery.org/types/ConstructedAttribute', 'https://metadata.datadrivendiscovery.org/types/PredictedTarget'],
+        default='https://metadata.datadrivendiscovery.org/types/PredictedTarget',
+        description='Decides what semantic type to attach to generated output',
+        semantic_types=['https://metadata.datadrivendiscovery.org/types/ControlParameter']
+    )
 
 class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Params, Hyperparams],
                               ProbabilisticCompositionalityMixin[Inputs, Outputs, Params, Hyperparams]):
@@ -112,21 +113,27 @@ class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Pa
     Primitive implementing KNeighborsClassifier using ArrayFire library
     """
 
-    __author__ = "ArrayFire"
+    __author__ = 'ArrayFire'
     metadata = metadata_base.PrimitiveMetadata({
-        "algorithm_types": [metadata_base.PrimitiveAlgorithmType.K_NEAREST_NEIGHBORS, ],
-        "id": "78c4acd6-ca23-456c-ab1c-c6d687b0957f",
-        "name": "ArrayFire KNN Classifier",
-        "python_path": "d3m.primitives.classification.k_neighbors.AF",
-        "primitive_family": metadata_base.PrimitiveFamily.CLASSIFICATION,
-        "version": "0.1.0"
-        #"installation": [
-            #{'type': metadata_base.PrimitiveInstallationType.PIP,
-             #'package_uri': 'git+https://github.com/arrayfire/arrayfire-python'
-            #TODO: git tag and egg?
-            #}],
+        'name': 'ArrayFire KNN Classifier',
+        'source': {
+            'name': 'ArrayFire',
+            'contact': 'mailto:support@arrayfire.com',
+            'uris': ['https://gitlab.com/syurkevi/d3m-arrayfire-primitives']},
+        'id': '78c4acd6-ca23-456c-ab1c-c6d687b0957f',
+        'version': '0.1.0',
+        'python_path': 'd3m.primitives.classification.k_neighbors.ArrayFire',
+        'keywords' : ['arrayfire', 'knearestneighbors', 'knn'],
+        'installation': [
+            {'type': metadata_base.PrimitiveInstallationType.PIP,
+             'package_uri': 'git+https://gitlab.com/syurkevi/d3m-arrayfire-primitives@{git_commit}#egg=af_primitives'.format(
+                 git_commit=utils.current_git_commit(os.path.dirname(__file__)),
+             ),
+            }],
+        'algorithm_types': [metadata_base.PrimitiveAlgorithmType.K_NEAREST_NEIGHBORS, ],
+        'primitive_family': metadata_base.PrimitiveFamily.CLASSIFICATION,
+        'hyperparams_to_tune': ['n_neighbors', 'dist_type'],
     })
-
 
     def __init__(self, *,
                  hyperparams: Hyperparams,
@@ -135,147 +142,193 @@ class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Pa
 
         super().__init__(hyperparams=hyperparams, random_seed=random_seed, docker_containers=docker_containers)
 
-        self.n_neighbors=self.hyperparams['n_neighbors'],
-        self.weights=self.hyperparams['weights'],
-        self.metric=self.hyperparams['metric'],
+        self._n_neighbors=self.hyperparams['n_neighbors'],
+        self._weights=self.hyperparams['weights'],
+        self._data = None
+        self._labels = None
 
+        self._inputs = None
+        self._outputs = None
         self._training_inputs = None
         self._training_outputs = None
         self._target_names = None
         self._training_indices = None
+        self._target_column_indices = None
+        self._target_columns_metadata: List[OrderedDict] = None
+        self._input_column_names = None
         self._fitted = False
+        self._new_training_data = False
 
     def set_training_data(self, *, inputs: Inputs, outputs: Outputs) -> None:
-        self._training_inputs, self._training_indices = self._get_columns_to_fit(inputs, self.hyperparams)
-        self._training_outputs, self._target_names = self._get_targets(outputs, self.hyperparams)
+        self._inputs = inputs
+        self._outputs = outputs
         self._fitted = False
+        self._new_training_data = True
 
     def fit(self, *, timeout: float = None, iterations: int = None) -> CallResult[None]:
-        if self._fitted:
-            return CallResult(None)
-
-        if self._training_inputs is None or self._training_outputs is None:
+        if self._inputs is None or self._outputs is None:
             raise ValueError("Missing training data.")
-        training_output = self._training_outputs.values
 
-        shape = training_output.shape
-        if len(shape) == 2 and shape[1] == 1:
-            training_output = np.ravel(training_output)
+        if not self._new_training_data:
+            return CallResult(None)
+        self._new_training_data = False
 
-        # "fit" data
-        self._data = af.np_to_af_array(self._training_inputs)
-        self._labels = af.np_to_af_array(training_outputs)
+        self._training_inputs, self._training_indices = self._get_columns_to_fit(self._inputs, self.hyperparams)
+        self._training_outputs, self._target_names, self._target_column_indices = self._get_targets(self._outputs, self.hyperparams)
+        self._input_column_names = self._training_inputs.columns
 
-        self._fitted = True
+        if len(self._training_indices) > 0 and len(self._target_column_indices) > 0:
+            self._target_columns_metadata = self._get_target_columns_metadata(self._training_outputs.metadata, self.hyperparams)
+            training_output = self._training_outputs.values
+
+            shape = training_output.shape
+            if len(shape) == 2 and shape[1] == 1:
+                training_output = numpy.ravel(training_output)
+
+            # "fit" data
+            self._data = af.from_ndarray(self._training_inputs.values)
+            self._labels = af.from_ndarray(training_output.astype('int32'))
+
+            self._fitted = True
+        else:
+            if self.hyperparams['error_on_no_input']:
+                raise RuntimeError("No input columns were selected")
+            self.logger.warn("No input columns were selected")
 
         return CallResult(None)
 
 
-    def _af_knn_predict(self, query):
-        af_query = af.np_to_af_array(query)
+    @classmethod
+    def _get_neighbor_weights(self, dists, weight_by_dist, k):
+        weights = None
+        if weight_by_dist:
+            inv_dists = 1./dists
+            sum_inv_dists = af.sum(inv_dists)
+            weights = inv_dists / sum_inv_dists
+        else:
+            weights = af.Array.copy(dists)
+            weights[:] = 1./k
+        return weights
 
-        kids, kdists = af.vision.nearest_neighbour(af_query, self.data, dim=1, num_nearest=self.n, match_type=af.MATCH.SSD)
-        labels = af.moddims(self.labels[kids], kids.shape[0], kids.shape[1])
-        # TODO for k-NN:
-        # for each unique in setUnique:
-        #    idxs of unique in kids
-        #    weight += kdists * "self.weights"
-        # outlabel = argmax weight
-        return af.flat(labels[0, :])
+
+    @classmethod
+    def _get_dist_type(self, dist_type_str):
+        dist_type = None
+        if dist_type_str == 'sad':
+            dist_type = af.MATCH.SAD
+        elif dist_type_str == 'ssd':
+            dist_type = af.MATCH.SSD
+        elif dist_type_str == 'hamming':
+            dist_type = af.MATCH.SHD
+        else:
+            raise RuntimeError('Invalid ArrayFire nearest neighbour distance type')
+        return dist_type
+
+
+    @classmethod
+    def _predict(self, query, train_feats, train_labels, k, dist_type, weight_by_dist):
+        self.logger.warning('k: {}'.format(k))
+        self.logger.warning('dist_type: {}'.format(dist_type))
+        near_locs, near_dists = af.vision.nearest_neighbour(query, train_feats, 1, \
+                                                            k, dist_type)
+        weights = self._get_neighbor_weights(near_dists, weight_by_dist, k)
+        top_labels = af.moddims(train_labels[near_locs], \
+                                near_locs.dims()[0], near_locs.dims()[1])
+        accum_weights = af.scan_by_key(top_labels, weights) # reduce by key would be more ideal
+        _, max_weight_locs = af.imax(accum_weights, dim=0)
+        pred_idxs = af.range(accum_weights.dims()[1]) * accum_weights.dims()[0] + max_weight_locs.T
+        top_labels_flat = af.flat(top_labels)
+        pred_classes = top_labels_flat[pred_idxs]
+        return pred_classes
+
+
+    @classmethod
+    def _predict_proba(self, query, train_feats, train_labels, k, dist_type, weight_by_dist):
+        near_locs, near_dists = af.vision.nearest_neighbour(query, train_feats, 1, \
+                                                            k, dist_type)
+        weights = self._get_neighbor_weights(near_dists, weight_by_dist, k)
+        top_labels = af.moddims(train_labels[near_locs], \
+                                near_locs.dims()[0], near_locs.dims()[1])
+        accum_weights = af.scan_by_key(top_labels, weights) # reduce by key would be more ideal
+        probs, _ = af.imax(accum_weights, dim=0)
+        return probs.T
+
 
     def produce(self, *, inputs: Inputs, timeout: float = None, iterations: int = None) -> CallResult[Outputs]:
-        af_inputs = inputs
-        if self.hyperparams['use_semantic_types']:
-            af_inputs = inputs.iloc[:, self._training_indices]
-
-        if sparse.issparse(af_inputs):
-            af_inputs = af_inputs.toarray()
-
-        af_output = self._af_knn_predict(sk_inputs)
-
-        output = d3m_dataframe(af_output, generate_metadata=False, source=self)
-        output.metadata = inputs.metadata.clear(source=self, for_value=output, generate_metadata=True)
-        output.metadata = self._add_target_semantic_types(metadata=output.metadata, target_names=self._target_names, source=self)
-        outputs = common_utils.combine_columns(return_result=self.hyperparams['return_result'],
-                                               add_index_columns=self.hyperparams['add_index_columns'],
-                                               inputs=inputs, column_indices=self._training_indices, columns_list=[output], source=self)
+        sk_inputs, columns_to_use = self._get_columns_to_fit(inputs, self.hyperparams)
+        output = []
+        if len(sk_inputs.columns):
+            try:
+                af_inputs = af.from_ndarray(sk_inputs.values)
+                weight_by_dist = self._weights == 'distance'
+                dist_type = self._get_dist_type(self.hyperparams['dist_type'])
+                af_output = self._predict(af_inputs, self._data, self._labels,        \
+                                          self.hyperparams['n_neighbors'], dist_type, \
+                                          weight_by_dist)
+                af_ndarray_output = af_output.to_ndarray().astype('int32')
+            except sklearn.exceptions.NotFittedError as error:
+                raise PrimitiveNotFittedError("Primitive not fitted.") from error
+            # For primitives that allow predicting without fitting like GaussianProcessRegressor
+            if not self._fitted:
+                raise PrimitiveNotFittedError("Primitive not fitted.")
+            if sparse.issparse(af_ndarray_output):
+                af_ndarray_output = af_ndarray_output.toarray()
+            output = self._wrap_predictions(inputs, af_ndarray_output)
+            output.columns = self._target_names
+            output = [output]
+        else:
+            if self.hyperparams['error_on_no_input']:
+                raise RuntimeError("No input columns were selected")
+            self.logger.warn("No input columns were selected")
+        outputs = base_utils.combine_columns(return_result=self.hyperparams['return_result'],
+                                             add_index_columns=self.hyperparams['add_index_columns'],
+                                             inputs=inputs, column_indices=self._target_column_indices,
+                                             columns_list=output)
 
         return CallResult(outputs)
+
 
     def get_params(self) -> Params:
         if not self._fitted:
             return Params(
-                _fit_method=None,
-                _fit_X=None,
-                _tree=None,
-                classes_=None,
-                _y=None,
-                outputs_2d_=None,
-                effective_metric_=None,
-                effective_metric_params_=None,
-                radius=None,
+                input_column_names=self._input_column_names,
                 training_indices_=self._training_indices,
-                target_names_=self._target_names
+                target_names_=self._target_names,
+                target_column_indices_=self._target_column_indices,
+                target_columns_metadata_=self._target_columns_metadata
             )
 
         return Params(
-            _fit_method=getattr(self._clf, '_fit_method', None),
-            _fit_X=getattr(self._clf, '_fit_X', None),
-            _tree=getattr(self._clf, '_tree', None),
-            classes_=getattr(self._clf, 'classes_', None),
-            _y=getattr(self._clf, '_y', None),
-            outputs_2d_=getattr(self._clf, 'outputs_2d_', None),
-            effective_metric_=getattr(self._clf, 'effective_metric_', None),
-            effective_metric_params_=getattr(self._clf, 'effective_metric_params_', None),
-            radius=getattr(self._clf, 'radius', None),
+            input_column_names=self._input_column_names,
             training_indices_=self._training_indices,
-            target_names_=self._target_names
+            target_names_=self._target_names,
+            target_column_indices_=self._target_column_indices,
+            target_columns_metadata_=self._target_columns_metadata
         )
 
+
     def set_params(self, *, params: Params) -> None:
-        self._clf._fit_method = params['_fit_method']
-        self._clf._fit_X = params['_fit_X']
-        self._clf._tree = params['_tree']
-        self._clf.classes_ = params['classes_']
-        self._clf._y = params['_y']
-        self._clf.outputs_2d_ = params['outputs_2d_']
-        self._clf.effective_metric_ = params['effective_metric_']
-        self._clf.effective_metric_params_ = params['effective_metric_params_']
-        self._clf.radius = params['radius']
+        self._input_column_names = params['input_column_names']
         self._training_indices = params['training_indices_']
         self._target_names = params['target_names_']
-        self._fitted = False
+        self._target_column_indices = params['target_column_indices_']
+        self._target_columns_metadata = params['target_columns_metadata_']
 
-        if params['_fit_method'] is not None:
-            self._fitted = True
-        if params['_fit_X'] is not None:
-            self._fitted = True
-        if params['_tree'] is not None:
-            self._fitted = True
-        if params['classes_'] is not None:
-            self._fitted = True
-        if params['_y'] is not None:
-            self._fitted = True
-        if params['outputs_2d_'] is not None:
-            self._fitted = True
-        if params['effective_metric_'] is not None:
-            self._fitted = True
-        if params['effective_metric_params_'] is not None:
-            self._fitted = True
-        if params['radius'] is not None:
-            self._fitted = True
 
     def log_likelihoods(self, *,
                     outputs: Outputs,
                     inputs: Inputs,
                     timeout: float = None,
                     iterations: int = None) -> CallResult[Sequence[float]]:
+        sk_inputs, columns_to_use = self._get_columns_to_fit(inputs, self.hyperparams)
+        af_inputs = af.from_ndarray(sk_inputs.values)
+        weight_by_dist = self._weights == 'distance'
+        dist_type = self._get_dist_type(self.hyperparams['dist_type'])
+        probs = self._predict_proba(af_inputs, self._data, self._labels,        \
+                                    self.hyperparams['n_neighbors'], dist_type, \
+                                    weight_by_dist)
+        return CallResult(af.log(probs).to_ndarray())
 
-        inputs = inputs.values
-        outputs = outputs.values
-        # TODO: implement probs, nvotes / tot_votes
-        # return CallResult(numpy.log(self._clf.predict_proba(inputs)[:, outputs]))
-        return CallResult(None)
 
     @classmethod
     def _get_columns_to_fit(cls, inputs: Inputs, hyperparams: Hyperparams):
@@ -287,9 +340,9 @@ class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Pa
         def can_produce_column(column_index: int) -> bool:
             return cls._can_produce_column(inputs_metadata, column_index, hyperparams)
 
-        columns_to_produce, columns_not_to_produce = common_utils.get_columns_to_use(inputs_metadata,
-                                                                             use_columns=hyperparams['use_input_columns'],
-                                                                             exclude_columns=hyperparams['exclude_input_columns'],
+        columns_to_produce, columns_not_to_produce = base_utils.get_columns_to_use(inputs_metadata,
+                                                                             use_columns=hyperparams['use_inputs_columns'],
+                                                                             exclude_columns=hyperparams['exclude_inputs_columns'],
                                                                              can_use_column=can_produce_column)
         return inputs.iloc[:, columns_to_produce], columns_to_produce
         # return columns_to_produce
@@ -318,9 +371,8 @@ class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Pa
     @classmethod
     def _get_targets(cls, data: d3m_dataframe, hyperparams: Hyperparams):
         if not hyperparams['use_semantic_types']:
-            return data, []
-        target_names = []
-        target_column_indices = []
+            return data, list(data.columns), list(range(len(data.columns)))
+
         metadata = data.metadata
 
         def can_produce_column(column_index: int) -> bool:
@@ -336,33 +388,74 @@ class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Pa
                 return True
             return False
 
-        target_column_indices, target_columns_not_to_produce = common_utils.get_columns_to_use(metadata,
-                                                                             use_columns=hyperparams['use_output_columns'],
-                                                                             exclude_columns=hyperparams['exclude_output_columns'],
-                                                                             can_use_column=can_produce_column)
-
-        for column_index in target_column_indices:
-            if column_index is metadata_base.ALL_ELEMENTS:
-                continue
-            column_index = typing.cast(metadata_base.SimpleSelectorSegment, column_index)
-            column_metadata = metadata.query((metadata_base.ALL_ELEMENTS, column_index))
-            target_names.append(column_metadata.get('name', str(column_index)))
-
-        targets = data.iloc[:, target_column_indices]
-        return targets, target_names
+        target_column_indices, target_columns_not_to_produce = base_utils.get_columns_to_use(metadata,
+                                                                                               use_columns=hyperparams[
+                                                                                                   'use_outputs_columns'],
+                                                                                               exclude_columns=
+                                                                                               hyperparams[
+                                                                                                   'exclude_outputs_columns'],
+                                                                                               can_use_column=can_produce_column)
+        targets = []
+        if target_column_indices:
+            targets = data.select_columns(target_column_indices)
+        target_column_names = []
+        for idx in target_column_indices:
+            target_column_names.append(data.columns[idx])
+        return targets, target_column_names, target_column_indices
 
     @classmethod
-    def _add_target_semantic_types(cls, metadata: metadata_base.DataMetadata,
-                            source: typing.Any,  target_names: List = None,) -> metadata_base.DataMetadata:
-        for column_index in range(metadata.query((metadata_base.ALL_ELEMENTS,))['dimension']['length']):
-            metadata = metadata.add_semantic_type((metadata_base.ALL_ELEMENTS, column_index),
-                                                  'https://metadata.datadrivendiscovery.org/types/Target',
-                                                  source=source)
-            metadata = metadata.add_semantic_type((metadata_base.ALL_ELEMENTS, column_index),
-                                                  'https://metadata.datadrivendiscovery.org/types/PredictedTarget',
-                                                  source=source)
-            if target_names:
-                metadata = metadata.update((metadata_base.ALL_ELEMENTS, column_index), {
-                    'name': target_names[column_index],
-                }, source=source)
-        return metadata
+    def _get_target_columns_metadata(cls, outputs_metadata: metadata_base.DataMetadata, hyperparams) -> List[OrderedDict]:
+        outputs_length = outputs_metadata.query((metadata_base.ALL_ELEMENTS,))['dimension']['length']
+
+        target_columns_metadata: List[OrderedDict] = []
+        for column_index in range(outputs_length):
+            column_metadata = OrderedDict(outputs_metadata.query_column(column_index))
+
+            # Update semantic types and prepare it for predicted targets.
+            semantic_types = set(column_metadata.get('semantic_types', []))
+            semantic_types_to_remove = set(["https://metadata.datadrivendiscovery.org/types/TrueTarget","https://metadata.datadrivendiscovery.org/types/SuggestedTarget",])
+            add_semantic_types = set(["https://metadata.datadrivendiscovery.org/types/PredictedTarget",])
+            add_semantic_types.add(hyperparams["return_semantic_type"])
+            semantic_types = semantic_types - semantic_types_to_remove
+            semantic_types = semantic_types.union(add_semantic_types)
+            column_metadata['semantic_types'] = list(semantic_types)
+
+            target_columns_metadata.append(column_metadata)
+
+        return target_columns_metadata
+
+    @classmethod
+    def _update_predictions_metadata(cls, inputs_metadata: metadata_base.DataMetadata, outputs: Optional[Outputs],
+                                     target_columns_metadata: List[OrderedDict]) -> metadata_base.DataMetadata:
+        outputs_metadata = metadata_base.DataMetadata().generate(value=outputs)
+
+        for column_index, column_metadata in enumerate(target_columns_metadata):
+            column_metadata.pop("structural_type", None)
+            outputs_metadata = outputs_metadata.update_column(column_index, column_metadata)
+
+        return outputs_metadata
+
+    def _wrap_predictions(self, inputs: Inputs, predictions: ndarray) -> Outputs:
+        outputs = d3m_dataframe(predictions, generate_metadata=False)
+        outputs.metadata = self._update_predictions_metadata(inputs.metadata, outputs, self._target_columns_metadata)
+        return outputs
+
+
+    @classmethod
+    def _add_target_columns_metadata(cls, outputs_metadata: metadata_base.DataMetadata):
+        outputs_length = outputs_metadata.query((metadata_base.ALL_ELEMENTS,))['dimension']['length']
+
+        target_columns_metadata: List[OrderedDict] = []
+        for column_index in range(outputs_length):
+            column_metadata = OrderedDict()
+            semantic_types = []
+            semantic_types.append('https://metadata.datadrivendiscovery.org/types/PredictedTarget')
+            column_name = outputs_metadata.query((metadata_base.ALL_ELEMENTS, column_index)).get("name")
+            if column_name is None:
+                column_name = "output_{}".format(column_index)
+            column_metadata["semantic_types"] = semantic_types
+            column_metadata["name"] = str(column_name)
+            target_columns_metadata.append(column_metadata)
+
+        return target_columns_metadata
+

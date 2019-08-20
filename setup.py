@@ -29,7 +29,8 @@ setup(
     keywords='d3m_primitive',
     entry_points={
         'd3m.primitives': [
-            'classification.logistic_regression.ArrayFire = af_primitives.af_LogisticRegression:af_LogisticRegression'
+            'classification.logistic_regression.ArrayFire = af_primitives.af_LogisticRegression:af_LogisticRegression',
+            'classification.k_neighbors.ArrayFire = af_primitives.af_KNeigborsClassifier:af_KNeighborsClassifier'
         ],
     },
 )
