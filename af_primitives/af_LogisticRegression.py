@@ -38,6 +38,12 @@ class Params(params.Params):
 
 
 class Hyperparams(hyperparams.Hyperparams):
+    penalty = hyperparams.Enumeration[str](
+        values=['l1', 'l2'],
+        default='l2',
+        description='Used to specify the norm used in the penalization. The \'newton-cg\', \'sag\' and \'lbfgs\' solvers support only l2 penalties.',
+        semantic_types=['https://metadata.datadrivendiscovery.org/types/TuningParameter']
+    )
     use_inputs_columns = hyperparams.Set(
         elements=hyperparams.Hyperparameter[int](-1),
         default=(),
@@ -158,6 +164,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
         self._alpha = self.hyperparams['learning_rate']
         self._lambda_param = self.hyperparams['reg_constant']
+        self._penalty = self.hyperparams['penalty']
         self._maxerr = self.hyperparams['max_err']
         self._maxiter = self.hyperparams['max_iter']
         self._verbose = bool(self.hyperparams['verbose'])
@@ -210,7 +217,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
 
     @classmethod
-    def _cost(self, Weights, X, Y, lambda_param=1.0):
+    def _cost(self, Weights, X, Y, lambda_param, penalty):
         # Number of samples
         m = Y.dims()[0]
 
@@ -231,14 +238,11 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         Jerr = -1 * af.sum(Y * af.log(H) + (1 - Y) * af.log(1 - H), dim=0)
 
         # Regularization cost
-        # TODO: add this back if we want penalty_norm to be a hyperparameter too
-        # penalty_norm = None
-        # if self.hyperparams['penalty'] == 'l2':
-        #     penalty_norm = Weights * Weights
-        # else:
-        #     penalty_norm = af.abs(Weights)
-        # For now use L2 norm
-        penalty_norm = Weights * Weights
+        penalty_norm = None
+        if penalty == 'l2':
+            penalty_norm = Weights * Weights
+        else:
+            penalty_norm = af.abs(Weights)
         Jreg = 0.5 * af.sum(lambdat * penalty_norm, dim=0)
 
         # Total cost
@@ -259,13 +263,13 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
 
     @classmethod
-    def _train(self, X, Y, alpha=0.1, lambda_param=1.0, maxerr=0.01, maxiter=1000):
+    def _train(self, X, Y, alpha=0.1, lambda_param=1.0, penalty='l2', maxerr=0.01, maxiter=1000):
         # Initialize parameters to 0
         Weights = af.constant(0, X.dims()[1], Y.dims()[1])
 
         for i in range(maxiter):
             # Get the cost and gradient
-            J, dJ = self._cost(Weights, X, Y, lambda_param)
+            J, dJ = self._cost(Weights, X, Y, lambda_param, penalty)
             err = af.max(af.abs(J))
             if err < maxerr:
                 return Weights
