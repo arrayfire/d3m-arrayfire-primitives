@@ -278,10 +278,14 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             J, dJ = self._cost(Weights, X, Y, lambda_param, penalty)
             err = af.max(af.abs(J))
             if err < maxerr:
+                Weights = Weights[:-1] # Remove bias weights
                 return Weights
 
             # Update the weights via gradient descent
             Weights = Weights - alpha * dJ
+
+        # Remove bias weights
+        Weights = Weights[:-1]
 
         return Weights
 
@@ -341,12 +345,9 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             self._max_feature_value_defined = True
             train_feats = train_feats / self._max_feature_value
 
-            # Remove bias for now to match output with pure arrayfire example
-            # Pure arrayfire example uses features with bias column for train and test
-            # but we can't expect that for d3m's inputs in general
-            # # Add bias
-            # train_bias = af.constant(1, num_train, 1)
-            # train_feats = af.join(1, train_bias, train_feats)
+            # Add bias feature
+            train_bias = af.constant(1, num_train, 1)
+            train_feats = af.join(1, train_bias, train_feats)
 
             # Start training
             self._weights = self._train(train_feats, train_targets,
