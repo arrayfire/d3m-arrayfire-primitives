@@ -326,10 +326,6 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
                 # Assume that class labels are integers and nonnegative
                 self._n_classes = np.amax(training_outputs).astype('uint32').item() + 1
 
-            # Flatten output if needed
-            shape = training_outputs.shape
-            if len(shape) == 2 and shape[1] == 1:
-                training_outputs = np.ravel(training_outputs)
 
             # Convert ndarray to af array
             train_images = af.from_ndarray(training_inputs)
@@ -337,10 +333,6 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
                 self._ints_to_onehots(training_outputs, self._n_classes)
             )
 
-            # Flatten training samples if they're multidimensional
-            num_train = train_images.dims()[0]
-            feature_length = int(train_images.elements() / num_train);
-            train_feats = af.moddims(train_images, num_train, feature_length)
             # Normalize feature values
             self._max_feature_value = af.max(train_feats)
             self._max_feature_value_defined = True
