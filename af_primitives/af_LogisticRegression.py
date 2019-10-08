@@ -162,11 +162,11 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
         super().__init__(hyperparams=hyperparams, random_seed=random_seed, docker_containers=docker_containers)
 
-        self._alpha = self.hyperparams['learning_rate']
-        self._lambda_param = self.hyperparams['reg_constant']
+        self._learning_rate = self.hyperparams['learning_rate']
+        self._reg_constant = self.hyperparams['reg_constant']
         self._penalty = self.hyperparams['penalty']
-        self._maxerr = self.hyperparams['max_err']
-        self._maxiter = self.hyperparams['max_iter']
+        self._max_err = self.hyperparams['max_err']
+        self._max_iter = self.hyperparams['max_iter']
         self._verbose = bool(self.hyperparams['verbose'])
         self._classes = None
         self._n_classes = 0
@@ -221,7 +221,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
 
     @classmethod
-    def _cost(self, Weights, X, Y, lambda_param, penalty):
+    def _cost(self, Weights, X, Y, reg_constant, penalty):
         # Number of samples
         m = Y.dims()[0]
 
@@ -229,8 +229,9 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         dim1 = Weights.dims()[1] if len(Weights.dims()) > 1 else None
         dim2 = Weights.dims()[2] if len(Weights.dims()) > 2 else None
         dim3 = Weights.dims()[3] if len(Weights.dims()) > 3 else None
+
         # Make the lambda corresponding to Weights(0) == 0
-        lambdat = af.constant(lambda_param, dim0, dim1, dim2, dim3)
+        lambdat = af.constant(reg_constant, dim0, dim1, dim2, dim3)
 
         # No regularization for bias weights
         lambdat[0, :] = 0
@@ -328,10 +329,11 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
 
             # Convert ndarray to af array
-            train_images = af.from_ndarray(training_inputs)
+            train_feats = af.from_ndarray(training_inputs)
             train_targets = af.from_ndarray(
                 self._ints_to_onehots(training_outputs, self._n_classes)
             )
+            num_train = train_feats.dims()[0]
 
             # Normalize feature values
             self._max_feature_value = af.max(train_feats)
@@ -344,10 +346,11 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
             # Start training
             self._weights = self._train(train_feats, train_targets,
-                                        self._alpha,
-                                        self._lambda_param,
-                                        self._maxerr,
-                                        self._maxiter
+                                        self._learning_rate,
+                                        self._reg_constant,
+                                        self._penalty,
+                                        self._max_err,
+                                        self._max_iter
             )
 
             self._fitted = True
@@ -375,9 +378,9 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             af_inputs = af_inputs / self._max_feature_value
 
             af_output = self._predict(af_inputs, self._weights)
-            af_ndarray_output = af_output.to_ndarray()
+            ndarray_output = af_output.to_ndarray()
 
-            output = self._wrap_predictions(inputs, af_ndarray_output)
+            output = self._wrap_predictions(inputs, ndarray_output)
             output.columns = self._target_names
             output = [output]
         else:
