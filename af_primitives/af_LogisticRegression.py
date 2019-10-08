@@ -170,7 +170,6 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         self._verbose = bool(self.hyperparams['verbose'])
         self._classes = None
         self._n_classes = 0
-        self._n_features = 0
         self._label_offset = 0
         self._max_feature_value = 0
         self._max_feature_value_defined = False
@@ -323,7 +322,6 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             training_outputs = sk_training_output.astype('uint32')
 
             if self._n_classes == 0:
-                self._n_features = training_inputs.shape[1]
                 # Assume that class labels are integers and nonnegative
                 self._n_classes = np.amax(training_outputs).astype('uint32').item() + 1
 
