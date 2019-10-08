@@ -171,6 +171,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         self._classes = None
         self._n_classes = 0
         self._n_features = 0
+        self._label_offset = 0
 
         self._inputs = None
         self._outputs = None
@@ -213,6 +214,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
     def _predict(self, X, Weights):
         probs = self._predict_proba(X, Weights)
         _, classes = af.imax(probs, 1)
+        classes = classes + self._label_offset
         return classes
 
 
@@ -257,8 +259,10 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
     @classmethod
     def _ints_to_onehots(self, digits, num_classes):
+        # Need labels to start with 0, but some datasets might start with 1 or other numbers
+        self._label_offset = np.amin(digits)
         onehots = np.zeros((digits.shape[0], num_classes), dtype='float32')
-        onehots[np.arange(digits.shape[0]), digits] = 1
+        onehots[np.arange(digits.shape[0]), digits - self._label_offset] = 1
         return onehots
 
 
