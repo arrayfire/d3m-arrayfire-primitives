@@ -269,7 +269,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
 
     @classmethod
-    def _train(self, X, Y, alpha=0.1, lambda_param=1.0, penalty='l2', maxerr=0.01, maxiter=1000):
+    def _train(self, X, Y, alpha, lambda_param, penalty, maxerr, maxiter):
         # Initialize parameters to 0
         Weights = af.constant(0, X.dims()[1], Y.dims()[1])
 
