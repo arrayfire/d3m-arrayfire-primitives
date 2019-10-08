@@ -324,7 +324,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             train_images = af.from_ndarray(training_inputs)
             train_targets = af.from_ndarray(
                 self._ints_to_onehots(training_outputs, self._n_classes)
-               )
+            )
 
             # Flatten training samples if they're multidimensional
             num_train = train_images.dims()[0]
@@ -376,9 +376,9 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             self.logger.warn("No input columns were selected")
 
         outputs = base_utils.combine_columns(return_result=self.hyperparams['return_result'],
-                                               add_index_columns=self.hyperparams['add_index_columns'],
-                                               inputs=inputs, column_indices=self._target_column_indices,
-                                               columns_list=output)
+                                             add_index_columns=self.hyperparams['add_index_columns'],
+                                             inputs=inputs, column_indices=self._target_column_indices,
+                                             columns_list=output)
 
         return CallResult(outputs)
 
@@ -474,9 +474,10 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             return cls._can_produce_column(inputs_metadata, column_index, hyperparams)
 
         columns_to_produce, columns_not_to_produce = base_utils.get_columns_to_use(inputs_metadata,
-                                                                             use_columns=hyperparams['use_inputs_columns'],
-                                                                             exclude_columns=hyperparams['exclude_inputs_columns'],
-                                                                             can_use_column=can_produce_column)
+                                                                                   use_columns=hyperparams['use_inputs_columns'],
+                                                                                   exclude_columns=hyperparams['exclude_inputs_columns'],
+                                                                                   can_use_column=can_produce_column)
+                                                                                   # ret_cols=all_columns)
         return inputs.iloc[:, columns_to_produce], columns_to_produce
         # return columns_to_produce
 
