@@ -477,7 +477,6 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
                                                                                    use_columns=hyperparams['use_inputs_columns'],
                                                                                    exclude_columns=hyperparams['exclude_inputs_columns'],
                                                                                    can_use_column=can_produce_column)
-                                                                                   # ret_cols=all_columns)
         return inputs.iloc[:, columns_to_produce], columns_to_produce
         # return columns_to_produce
 
