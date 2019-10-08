@@ -172,6 +172,8 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         self._n_classes = 0
         self._n_features = 0
         self._label_offset = 0
+        self._max_feature_value = 0
+        self._max_feature_value_defined = False
 
         self._inputs = None
         self._outputs = None
@@ -334,6 +336,10 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             num_train = train_images.dims()[0]
             feature_length = int(train_images.elements() / num_train);
             train_feats = af.moddims(train_images, num_train, feature_length)
+            # Normalize feature values
+            self._max_feature_value = af.max(train_feats)
+            self._max_feature_value_defined = True
+            train_feats = train_feats / self._max_feature_value
 
             # Remove bias for now to match output with pure arrayfire example
             # Pure arrayfire example uses features with bias column for train and test
@@ -368,6 +374,12 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         output = []
         if len(sk_inputs.columns):
             af_inputs = af.from_ndarray(sk_inputs.values.astype('float32'))
+
+            # Normalize feature values
+            if not self._max_feature_value_defined:
+                self._max_feature_value = af.max(train_feats)
+            af_inputs = af_inputs / self._max_feature_value
+
             af_output = self._predict(af_inputs, self._weights)
             af_ndarray_output = af_output.to_ndarray()
 
