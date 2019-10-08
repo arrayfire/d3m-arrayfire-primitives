@@ -322,8 +322,9 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             training_outputs = sk_training_output.astype('uint32')
 
             if self._n_classes == 0:
-                self._n_classes = np.unique(training_outputs).shape[0]
                 self._n_features = training_inputs.shape[1]
+                # Assume that class labels are integers and nonnegative
+                self._n_classes = np.amax(training_outputs).astype('uint32').item() + 1
 
             # Flatten output if needed
             shape = training_outputs.shape
