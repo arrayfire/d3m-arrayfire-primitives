@@ -325,6 +325,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
                 # Assume that class labels are integers and nonnegative
                 self._n_classes = np.amax(training_outputs).astype('uint32').item() + 1
 
+            self._classes = list(range(self._n_classes))
 
             # Convert ndarray to af array
             train_feats = af.from_ndarray(training_inputs)
