@@ -227,8 +227,6 @@ class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Pa
 
     @classmethod
     def _predict(self, query, train_feats, train_labels, k, dist_type, weight_by_dist):
-        self.logger.warning('k: {}'.format(k))
-        self.logger.warning('dist_type: {}'.format(dist_type))
         near_locs, near_dists = af.vision.nearest_neighbour(query, train_feats, 1, \
                                                             k, dist_type)
         weights = self._get_neighbor_weights(near_dists, weight_by_dist, k)
