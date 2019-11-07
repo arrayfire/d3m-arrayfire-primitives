@@ -270,22 +270,26 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
     @classmethod
     def _train(self, X, Y, alpha, lambda_param, penalty, maxerr, maxiter):
+        # Add bias feature
+        bias = af.constant(1, X.dims()[0], 1)
+        X_biased = af.join(1, bias, X)
+
         # Initialize parameters to 0
-        Weights = af.constant(0, X.dims()[1], Y.dims()[1])
+        Weights = af.constant(0, X_biased.dims()[1], Y.dims()[1])
 
         for i in range(maxiter):
             # Get the cost and gradient
-            J, dJ = self._cost(Weights, X, Y, lambda_param, penalty)
+            J, dJ = self._cost(Weights, X_biased, Y, lambda_param, penalty)
             err = af.max(af.abs(J))
             if err < maxerr:
-                Weights = Weights[:-1] # Remove bias weights
+                Weights = Weights[1:] # Remove bias weights
                 return Weights
 
             # Update the weights via gradient descent
             Weights = Weights - alpha * dJ
 
         # Remove bias weights
-        Weights = Weights[:-1]
+        Weights = Weights[1:]
 
         return Weights
 
@@ -338,10 +342,6 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
             self._max_feature_value = af.max(train_feats)
             self._max_feature_value_defined = True
             train_feats = train_feats / self._max_feature_value
-
-            # Add bias feature
-            train_bias = af.constant(1, num_train, 1)
-            train_feats = af.join(1, train_bias, train_feats)
 
             # Start training
             self._weights = self._train(train_feats, train_targets,
