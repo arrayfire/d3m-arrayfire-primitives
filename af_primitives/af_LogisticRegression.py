@@ -189,18 +189,6 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
 
 
     @classmethod
-    def _accuracy(self, predicted, target):
-        _, tlabels = af.imax(target, 1)
-        _, plabels = af.imax(predicted, 1)
-        return 100 * af.count(plabels == tlabels) / tlabels.elements()
-
-
-    @classmethod
-    def _abserr(self, predicted, target):
-        return 100 * af.sum(af.abs(predicted - target)) / predicted.elements()
-
-
-    @classmethod
     def _predict_proba(self, X, Weights):
         Z = af.matmul(X, Weights)
         return af.sigmoid(Z)
