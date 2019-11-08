@@ -188,27 +188,24 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         self._new_training_data = False
 
 
-    @classmethod
-    def _predict_proba(self, X, Weights):
+    def _predict_proba(self, X: af.Array, Weights: af.Array) -> af.Array:
         Z = af.matmul(X, Weights)
         return af.sigmoid(Z)
 
 
-    @classmethod
-    def _predict_log_proba(self, X, Weights):
+    def _predict_log_proba(self, X: af.Array, Weights: af.Array) -> af.Array:
         return af.log(self._predict_proba(X, Weights))
 
 
-    @classmethod
-    def _predict(self, X, Weights):
+    def _predict(self, X: af.Array, Weights: af.Array) -> af.Array:
         probs = self._predict_proba(X, Weights)
         _, classes = af.imax(probs, 1)
         classes = classes + self._label_offset
         return classes
 
 
-    @classmethod
-    def _cost(self, Weights, X, Y, reg_constant, penalty):
+    def _cost(self, Weights: af.Array, X: af.Array, Y: af.Array,
+              reg_constant: float, penalty: str) -> (af.Array, af.Array):
         # Number of samples
         m = Y.dims()[0]
 
@@ -247,8 +244,7 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         return J, dJ
 
 
-    @classmethod
-    def _ints_to_onehots(self, digits, num_classes):
+    def _ints_to_onehots(self, digits: np.ndarray, num_classes: int) -> np.ndarray:
         # Need labels to start with 0, but some datasets might start with 1 or other numbers
         self._label_offset = np.amin(digits)
         onehots = np.zeros((digits.shape[0], num_classes), dtype='float32')
@@ -256,8 +252,8 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         return onehots
 
 
-    @classmethod
-    def _train(self, X, Y, alpha, lambda_param, penalty, maxerr, maxiter):
+    def _train(self, X:af.Array, Y:af.Array, alpha: float, lambda_param: float,
+               penalty: str, maxerr: float, maxiter: int) -> af.Array:
         # Add bias feature
         bias = af.constant(1, X.dims()[0], 1)
         X_biased = af.join(1, bias, X)
