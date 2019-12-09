@@ -23,7 +23,7 @@ setup(
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     install_requires=[
         'arrayfire==3.6.20181017',
-        'd3m==2019.6.7'
+        'd3m==2019.11.10'
     ],
     url='https://gitlab.com/syurkevi/d3m-arrayfire-primitives',
     keywords='d3m_primitive',
