@@ -1,0 +1,95 @@
+context: TESTING
+created: "2020-01-08T09:26:12.993701Z"
+id: 458acbdd-a474-4ca4-8f63-5272b363ffa0
+inputs:
+  - name: inputs
+outputs:
+  - data: steps.5.produce
+    name: "output predictions"
+schema: "https://metadata.datadrivendiscovery.org/schemas/v0/pipeline.json"
+steps:
+  - arguments:
+      inputs:
+        data: inputs.0
+        type: CONTAINER
+    outputs:
+      - id: produce
+    primitive:
+      id: f31f8c1f-d1c5-43e5-a4b2-2ae4a761ef2e
+      name: "Denormalize datasets"
+      python_path: d3m.primitives.data_transformation.denormalize.Common
+      version: 0.2.0
+    type: PRIMITIVE
+  - arguments:
+      inputs:
+        data: steps.0.produce
+        type: CONTAINER
+    outputs:
+      - id: produce
+    primitive:
+      id: 4b42ce1e-9b98-4a25-b68e-fad13311eb65
+      name: "Extract a DataFrame from a Dataset"
+      python_path: d3m.primitives.data_transformation.dataset_to_dataframe.Common
+      version: 0.3.0
+    type: PRIMITIVE
+  - arguments:
+      inputs:
+        data: steps.1.produce
+        type: CONTAINER
+    outputs:
+      - id: produce
+    primitive:
+      id: 8f2e51e8-da59-456d-ae29-53912b2b9f3d
+      name: "Columns image reader"
+      python_path: d3m.primitives.data_preprocessing.image_reader.Common
+      version: 0.2.0
+    type: PRIMITIVE
+  - arguments:
+      inputs:
+        data: steps.2.produce
+        type: CONTAINER
+    outputs:
+      - id: produce
+    primitive:
+      id: 6544f5c9-a220-4242-a635-ab13c3dce5fa
+      name: "Ndarray Column Flatten"
+      python_path: d3m.primitives.data_preprocessing.ndarray_flatten.Common
+      version: 0.1.0
+    type: PRIMITIVE
+  - arguments:
+      inputs:
+        data: steps.3.produce
+        type: CONTAINER
+      outputs:
+        data: steps.3.produce
+        type: CONTAINER
+    outputs:
+      - id: produce
+    hyperparams:
+      use_semantic_types:
+        data: true
+        type: VALUE
+      add_index_columns:
+        data: true
+        type: VALUE
+    primitive:
+      id: 78c4acd6-ca23-456c-ab1c-c6d687b0957f
+      name: "ArrayFire KNN Classifier"
+      python_path: d3m.primitives.classification.k_neighbors.ArrayFire
+      version: 0.1.0
+    type: PRIMITIVE
+  - arguments:
+      inputs:
+        data: steps.4.produce
+        type: CONTAINER
+      reference:
+        data: steps.1.produce
+        type: CONTAINER
+    outputs:
+      - id: produce
+    primitive:
+      id: 8d38b340-f83f-4877-baaa-162f8e551736
+      name: "Construct pipeline predictions output"
+      python_path: d3m.primitives.data_transformation.construct_predictions.Common
+      version: 0.3.0
+    type: PRIMITIVE
