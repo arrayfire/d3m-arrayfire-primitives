@@ -93,6 +93,6 @@ steps:
     primitive:
       id: 8d38b340-f83f-4877-baaa-162f8e551736
       name: "Construct pipeline predictions output"
-      python_path: d3m.primitives.data_transformation.construct_predictions.DataFrameCommon
+      python_path: d3m.primitives.data_transformation.construct_predictions.Common
       version: 0.3.0
     type: PRIMITIVE
