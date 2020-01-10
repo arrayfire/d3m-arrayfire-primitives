@@ -25,7 +25,7 @@ setup(
         'arrayfire==3.6.20181017',
         'd3m==2019.11.10'
     ],
-    url='https://gitlab.com/syurkevi/d3m-arrayfire-primitives',
+    url='https://gitlab.com/mark-poscablo/d3m-arrayfire-primitives',
     keywords='d3m_primitive',
     entry_points={
         'd3m.primitives': [
