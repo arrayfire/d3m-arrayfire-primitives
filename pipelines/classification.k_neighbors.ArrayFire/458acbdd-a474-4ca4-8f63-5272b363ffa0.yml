@@ -53,7 +53,7 @@ steps:
     primitive:
       id: 6544f5c9-a220-4242-a635-ab13c3dce5fa
       name: "Ndarray Column Flatten"
-      python_path: d3m.primitives.data_preprocessing.ndarray_flatten.ArrayFire
+      python_path: d3m.primitives.data_preprocessing.ndarray_flatten.Common
       version: 0.1.0
     type: PRIMITIVE
   - arguments:
