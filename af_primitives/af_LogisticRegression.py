@@ -137,14 +137,14 @@ class af_LogisticRegression(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Para
         'source': {
             'name': 'ArrayFire',
             'contact': 'mailto:support@arrayfire.com',
-            'uris': ['https://gitlab.com/syurkevi/d3m-arrayfire-primitives']},
+            'uris': ['https://github.com/arrayfire/d3m-arrayfire-primitives.git']},
         'id': '25b08bb7-12f0-4447-a75b-5856ead6227e',
         'version': '0.1.0',
         'python_path': 'd3m.primitives.classification.logistic_regression.ArrayFire',
         'keywords' : ['arrayfire', 'logistic regression', 'logistic regressor'],
         'installation': [
             {'type': metadata_base.PrimitiveInstallationType.PIP,
-             'package_uri': 'git+https://gitlab.com/syurkevi/d3m-arrayfire-primitives@{git_commit}#egg=af_primitives'.format(
+             'package_uri': 'git+https://github.com/arrayfire/d3m-arrayfire-primitives.git@{git_commit}#egg=af_primitives'.format(
                  git_commit=utils.current_git_commit(os.path.dirname(__file__)),
              ),
             }],

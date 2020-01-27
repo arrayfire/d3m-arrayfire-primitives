@@ -119,14 +119,14 @@ class af_KNeighborsClassifier(SupervisedLearnerPrimitiveBase[Inputs, Outputs, Pa
         'source': {
             'name': 'ArrayFire',
             'contact': 'mailto:support@arrayfire.com',
-            'uris': ['https://gitlab.com/syurkevi/d3m-arrayfire-primitives']},
+            'uris': ['https://github.com/arrayfire/d3m-arrayfire-primitives.git']},
         'id': '78c4acd6-ca23-456c-ab1c-c6d687b0957f',
         'version': '0.1.0',
         'python_path': 'd3m.primitives.classification.k_neighbors.ArrayFire',
         'keywords' : ['arrayfire', 'knearestneighbors', 'knn'],
         'installation': [
             {'type': metadata_base.PrimitiveInstallationType.PIP,
-             'package_uri': 'git+https://gitlab.com/syurkevi/d3m-arrayfire-primitives@{git_commit}#egg=af_primitives'.format(
+             'package_uri': 'git+https://github.com/arrayfire/d3m-arrayfire-primitives.git{git_commit}#egg=af_primitives'.format(
                  git_commit=utils.current_git_commit(os.path.dirname(__file__)),
              ),
             }],
