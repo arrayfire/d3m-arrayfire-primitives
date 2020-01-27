@@ -20,8 +20,12 @@ def read_package_variable(key):
 
 def install_arrayfire():
     check_call('mkdir -p /opt/arrayfire'.split())
-    check_call('wget -P /tmp https://arrayfire.s3.amazonaws.com/3.6.4/ArrayFire-v3.6.4_Linux_x86_64.sh'.split())
-    check_call('bash /tmp/ArrayFire-v3.6.4_Linux_x86_64.sh --skip-license --prefix=/opt/arrayfire'.split())
+    # check_call('wget -P /tmp https://arrayfire.s3.amazonaws.com/3.6.4/ArrayFire-v3.6.4_Linux_x86_64.sh'.split())
+    check_call('bash /mnt/d3m/misc/ArrayFire-v3.6.4_Linux_x86_64.sh --skip-license --prefix=/opt/arrayfire'.split())
+    # check_call('echo \'export LD_PRELOAD=/opt/arrayfire/lib64/libafcuda.so\' >> ~/.bashrc'.split())
+    # check_call('echo \'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/arrayfire/lib64\' >> ~/.bashrc'.split())
+    check_call('export LD_PRELOAD=/opt/arrayfire/lib64/libafcuda.so'.split())
+    check_call('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/arrayfire/lib64'.split())
 
 
 class PostDevelopStep(develop):
@@ -44,7 +48,7 @@ setup(
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     install_requires=[
         'arrayfire==3.6.20181017',
-        'd3m==2019.11.10'
+        'd3m==2020.1.9'
     ],
     url='https://github.com/arrayfire/d3m-arrayfire-primitives',
     keywords='d3m_primitive',
