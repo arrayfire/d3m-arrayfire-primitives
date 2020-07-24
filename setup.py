@@ -20,8 +20,8 @@ def read_package_variable(key):
 
 def install_arrayfire():
     check_call('mkdir -p /opt/arrayfire'.split())
-    # check_call('wget -P /tmp https://arrayfire.s3.amazonaws.com/3.6.4/ArrayFire-v3.6.4_Linux_x86_64.sh'.split())
-    check_call('bash /mnt/d3m/misc/ArrayFire-v3.6.4_Linux_x86_64.sh --skip-license --prefix=/opt/arrayfire'.split())
+    #check_call('wget -P /tmp https://arrayfire.s3.amazonaws.com/3.7.2/ArrayFire-v3.7.2_Linux_x86_64.sh'.split())
+    #check_call('bash /tmp/ArrayFire-v3.7.2_Linux_x86_64.sh --skip-license --prefix=/opt/arrayfire'.split())
     # check_call('echo \'export LD_PRELOAD=/opt/arrayfire/lib64/libafcuda.so\' >> ~/.bashrc'.split())
     # check_call('echo \'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/arrayfire/lib64\' >> ~/.bashrc'.split())
     check_call('export LD_PRELOAD=/opt/arrayfire/lib64/libafcuda.so'.split())
@@ -36,7 +36,7 @@ class PostDevelopStep(develop):
 
 class PostInstallStep(install):
     def run(self):
-        install_arrayfire()
+        #install_arrayfire()
         install.run(self)
 
 
@@ -47,15 +47,19 @@ setup(
     author=read_package_variable('__author__'),
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     install_requires=[
-        'arrayfire==3.6.20181017',
-        'd3m==2020.1.9'
+        'arrayfire==3.7.20200213',
+        'd3m==2020.5.18'
     ],
     url='https://github.com/arrayfire/d3m-arrayfire-primitives',
     keywords='d3m_primitive',
     entry_points={
         'd3m.primitives': [
             'classification.logistic_regression.ArrayFire = af_primitives.af_LogisticRegression:af_LogisticRegression',
-            'classification.k_neighbors.ArrayFire = af_primitives.af_KNeigborsClassifier:af_KNeighborsClassifier'
+            'classification.k_neighbors.ArrayFire = af_primitives.af_KNeigborsClassifier:af_KNeighborsClassifier',
+            'data_cleaning.imputer.ArrayFire = af_primitives.afSKImputer:SKImputer',
+            'data_cleaning.string_imputer.ArrayFire = af_primitives.afSKStringImputer:SKStringImputer',
+            'classification.mlp.ArrayFire = af_primitives.afSKMLPClassifier:SKMLPClassifier',
+            'regression.mlp.ArrayFire = af_primitives.afSKMLPRegressor:SKMLPRegressor',
         ],
     },
     cmdclass={
