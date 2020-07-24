@@ -131,11 +131,7 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
         coef_grads[layer] += (self.alpha * self.coefs_[layer])
         coef_grads[layer] /= n_samples
 
-        #print("ssss")
-        #print(deltas[layer].shape)
-        #import pdb; pdb.set_trace()
         intercept_grads[layer] = af.flat(af.mean(deltas[layer], dim=0))
-        #print(intercept_grads[layer].shape)
 
         return coef_grads, intercept_grads
 
@@ -208,8 +204,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
         coef_grads : list, length = n_layers - 1
         intercept_grads : list, length = n_layers - 1
         """
-        t0 = time.time()
-
         n_samples = X.shape[0]
 
         # Forward propagate
@@ -238,7 +232,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
         # Compute gradient for the last layer
         coef_grads, intercept_grads = self._compute_loss_grad(
             last, n_samples, activations, deltas, coef_grads, intercept_grads)
-        t1 = time.time()
 
         # Iterate over the hidden layers
         for i in range(self.n_layers_ - 2, 0, -1):
@@ -250,9 +243,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
                 i - 1, n_samples, activations, deltas, coef_grads,
                 intercept_grads)
 
-        t2 = time.time()
-        #print(f' bptime0  time: {t1  - t0:.6f}')
-        #print(f' bptime1  time: {t2  - t1:.6f}')
         return loss, coef_grads, intercept_grads
 
     def _initialize(self, y, layer_units):
@@ -309,46 +299,38 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
         return coef_init, intercept_init
 
     def _fit(self, X, y, incremental=False):
-        t0 = time.time()
         # Make sure self.hidden_layer_sizes is a list
         hidden_layer_sizes = self.hidden_layer_sizes
         if not hasattr(hidden_layer_sizes, "__iter__"):
             hidden_layer_sizes = [hidden_layer_sizes]
         hidden_layer_sizes = list(hidden_layer_sizes)
-        t1 = time.time()
 
         # Validate input parameters.
         self._validate_hyperparameters()
         if np.any(np.array(hidden_layer_sizes) <= 0):
             raise ValueError("hidden_layer_sizes must be > 0, got %s." %
                              hidden_layer_sizes)
-        t2 = time.time()
 
         X, y = self._validate_input(X, y, incremental)
         n_samples, n_features = X.shape
-        t3 = time.time()
 
         # Ensure y is 2D
         #if y.numdims() == 1:
             #y = af.moddims(y, y.elements(), 1)
-        t4 = time.time()
 
         self.n_outputs_ = y.shape[1] if y.numdims() > 1 else 1
 
         layer_units = ([n_features] + hidden_layer_sizes +
                        [self.n_outputs_])
-        t5 = time.time()
 
         # check random state
         self._random_state = check_random_state(self.random_state)
 
-        t6 = time.time()
         if not hasattr(self, 'coefs_') or (not self.warm_start and not
                                            incremental):
             # First time training the model
             self._initialize(y, layer_units)
 
-        t7 = time.time()
         # lbfgs does not support mini-batches
         if self.solver == 'lbfgs':
             batch_size = n_samples
@@ -360,46 +342,27 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
                               "sample size. It is going to be clipped")
             batch_size = np.clip(self.batch_size, 1, n_samples)
 
-        t8 = time.time()
         # Initialize lists
         activations = [X] + [None] * (len(layer_units) - 1)
         deltas = [None] * (len(activations) - 1)
 
-        t9 = time.time()
         coef_grads = [np.empty((n_fan_in_, n_fan_out_)) for n_fan_in_,
                       n_fan_out_ in zip(layer_units[:-1],
                                         layer_units[1:])]
 
-        t10 = time.time()
         intercept_grads = [af.constant(0, n_fan_out_) for n_fan_out_ in
                            layer_units[1:]]
 
-        t11 = time.time()
         # Run the Stochastic optimization solver
         if self.solver in _STOCHASTIC_SOLVERS:
             self._fit_stochastic(X, y, activations, deltas, coef_grads,
                                  intercept_grads, layer_units, incremental)
-        t12 = time.time()
 
 #        # Run the LBFGS solver
 #        elif self.solver == 'lbfgs':
 #            self._fit_lbfgs(X, y, activations, deltas, coef_grads,
 #                            intercept_grads, layer_units)
 
-        #print(f' fit1()  time: {t1  - t0:.6f}')
-        #print(f' fit2()  time: {t2  - t1:.6f}')
-        #print(f' fit3()  time: {t3  - t2:.6f}')
-        #print(f' fit4()  time: {t4  - t3:.6f}')
-        #print(f' fit5()  time: {t5  - t4:.6f}')
-        #print(f' fit6()  time: {t6  - t5:.6f}')
-        #print(f' fit7()  time: {t7  - t6:.6f}')
-        #print(f' fit8()  time: {t8  - t7:.6f}')
-        #print(f' fit9()  time: {t9  - t8:.6f}')
-        #print(f' fit10() time: {t10 - t9:.6f}')
-        #print(f' fit11() time: {t11 - t10:.6f}')
-        #print(f' fit12() time: {t12 - t11:.6f}')
-        #print(f' fit0_11() time: {t11 - t0:.6f}')
-        #print(f' fit12() time: {t12 - t11:.6f}')
         return self
 
     def _validate_hyperparameters(self):
@@ -502,7 +465,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
                         intercept_grads, layer_units, incremental):
 
 
-        t0 = time.time()
         if not incremental or not hasattr(self, '_optimizer'):
             params = self.coefs_ + self.intercepts_
 
@@ -515,7 +477,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
                     params, self.learning_rate_init, self.beta_1, self.beta_2,
                     self.epsilon)
 
-        t1 = time.time()
         # early_stopping in partial_fit doesn't make sense
         early_stopping = self.early_stopping and not incremental
         if early_stopping:
@@ -531,7 +492,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
         else:
             X_val = None
             y_val = None
-        t2 = time.time()
 
         n_samples = X.shape[0]
         sample_idx = np.arange(n_samples, dtype=int)
@@ -542,34 +502,17 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
             batch_size = np.clip(self.batch_size, 1, n_samples)
 
         try:
-            t2 = time.time()
-            t1221 = 0.0
-            t1222 = 0.0
-            t1223 = 0.0
-            t1224 = 0.0
-            t1225 = 0.0
-
-            t12221  = 0.0
-            t12222  = 0.0
-            t12223  = 0.0
-            t122231 = 0.0
-            t122232 = 0.0
-            t122233 = 0.0
             for it in range(self.max_iter):
-                t21 = time.time()
                 if self.shuffle:
                     # Only shuffle the sample indices instead of X and y to
                     # reduce the memory footprint. These indices will be used
                     # to slice the X and y.
                     sample_idx = shuffle(sample_idx,
                                          random_state=self._random_state)
-                t22 = time.time()
 
                 #sloooow loop
-
                 accumulated_loss = 0.0
                 for batch_slice in gen_batches(n_samples, batch_size):
-                    t221 = time.time()
                     if self.shuffle:
                         X_batch = _safe_indexing(X, sample_idx[batch_slice])
                         ii = af.interop.from_ndarray(sample_idx[batch_slice])
@@ -577,44 +520,23 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
                     else:
                         X_batch = X[batch_slice]
                         y_batch = y[batch_slice]
-                    t222 = time.time()
 
                     activations[0] = X_batch
                     batch_loss, coef_grads, intercept_grads = self._backprop(
                         X_batch, y_batch, activations, deltas,
                         coef_grads, intercept_grads)
-                    t223 = time.time()
                     accumulated_loss += batch_loss * (batch_slice.stop -
                                                       batch_slice.start)
-                    t2231 = time.time()
 
                     # update weights
                     grads = coef_grads + intercept_grads
-                    t2232 = time.time()
-                    #print(len(grads))
-                    #print(grads[0].shape)
-                    #print(grads[1].shape)
-                    #print(grads[2].shape)
-                    ##print(grads[3].shape)
-                    #print(type(grads[0]))
                     self._optimizer.update_params(grads)
-                    t224 = time.time()
-
-                    t12221  += t222  - t221
-                    t12222  += t223  - t222
-                    t12223  += t224  - t223
-
-                    t122231 += t2231 - t223
-                    t122232 += t2232 - t2231
-                    t122233 += t224  - t2232
-                t23 = time.time()
 
                 self.n_iter_ += 1
                 self.loss_ = accumulated_loss / X.shape[0]
 
                 self.t_ += n_samples
                 self.loss_curve_.append(self.loss_)
-                t24 = time.time()
                 if self.verbose:
                     print("Iteration %d, loss = %.8f" % (self.n_iter_,
                                                          self.loss_))
@@ -625,7 +547,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
 
                 # for learning rate that needs to be updated at iteration end
                 self._optimizer.iteration_ends(self.t_)
-                t25 = time.time()
 
                 if self._no_improvement_count > self.n_iter_no_change:
                     # not better than last `n_iter_no_change` iterations by tol
@@ -645,7 +566,6 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
                         break
                     else:
                         self._no_improvement_count = 0
-                t26 = time.time()
 
                 if incremental:
                     break
@@ -655,43 +575,15 @@ class BaseMultilayerPerceptron(afBaseEstimator, metaclass=ABCMeta):
                         "Stochastic Optimizer: Maximum iterations (%d) "
                         "reached and the optimization hasn't converged yet."
                         % self.max_iter, ConvergenceWarning)
-                t1221 += (t22  - t21)
-                t1222 += (t23  - t22)
-                t1223 += (t24  - t23)
-                t1224 += (t25  - t24)
-                t1225 += (t26  - t25)
-
-            #print(f'\t\t fit12.21()  time: {t1221:.6f}')
-            #print(f'\t\t fit12.22()  time: {t1222:.6f}')
 
 
-            #print(f'\t\t\t fit12.221()  time: {t12221:.6f}')
-            #print(f'\t\t\t fit12.222()  time: {t12222:.6f}')
-            #print(f'\t\t\t fit12.223()  time: {t12223:.6f}')
-
-            #print(f'\t\t\t\t fit12.2231()  time: {t122231:.6f}')
-            #print(f'\t\t\t\t fit12.2232()  time: {t122232:.6f}')
-            #print(f'\t\t\t\t fit12.2233()  time: {t122233:.6f}')
-
-            #print(f'\t\t fit12.23()  time: {t1223:.6f}')
-            #print(f'\t\t fit12.24()  time: {t1224:.6f}')
-            #print(f'\t\t fit12.25()  time: {t1225:.6f}')
-
-            t3 = time.time()
         except KeyboardInterrupt:
             warnings.warn("Training interrupted by user.")
 
-        t4 = time.time()
         if early_stopping:
             # restore best weights
             self.coefs_ = self._best_coefs
             self.intercepts_ = self._best_intercepts
-        t5 = time.time()
-        #print(f'\tfit12.1()  time: {t1  - t0:.6f}')
-        #print(f'\tfit12.2()  time: {t2  - t1:.6f}')
-        #print(f'\tfit12.3()  time: {t3  - t2:.6f}')
-        #print(f'\tfit12.4()  time: {t4  - t3:.6f}')
-        #print(f'\tfit12.5()  time: {t5  - t4:.6f}')
 
     def _update_no_improvement_count(self, early_stopping, X_val, y_val):
         if early_stopping:
